@@ -1,0 +1,12 @@
+{
+    "output": "./test-output/",
+    "model": "resnet101", 
+    "epochs": 1,
+    "batch-size": 32,
+    "opt": "adamw",
+    "dataset": "cifar10",
+    "train-split": "train",
+    "test-split": "test",
+    "image-column": "img",
+    "label-column": "label"
+}
