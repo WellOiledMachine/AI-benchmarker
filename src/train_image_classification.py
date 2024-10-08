@@ -195,18 +195,19 @@ def main():
     load_config_file(args)
 
     configure_output_dir(args.output) 
+    print("Loading dataset...")
+    start = time.time()
+    # Load the dataset. Will error if the splits and column_titles are not correct for your dataset.
+    loader = HF_DatasetLoader(args)
+    train_dataloader, test_dataloader, train_sampler, num_classes = loader.load()
+    print(f"Done. Dataset loaded in {time.time() - start:.2f} seconds.")
 
     monitor = Profiler.monitor_system_utilization(interval=args.sampling_rate, output_dir=args.output)
     with monitor:
-        print("Loading dataset...")
-        start = time.time()
-        # Load the dataset. Will error if the splits and column_titles are not correct for your dataset.
-        loader = HF_DatasetLoader(args)
-        train_dataloader, test_dataloader, train_sampler, num_classes = loader.load()
-        print(f"Done. Dataset loaded in {time.time() - start:.2f} seconds.")
-    
+        start_time = time.time()
         # Train the model using specifications from the args object
         train_classification_model(args, train_dataloader, test_dataloader, train_sampler, num_classes)
+        print(f"Training finished in {time.time() - start_time:.2f} seconds.")
 
     # Generate all the plots
     all_inclusive_plots(args.output, 'graphs')
