@@ -2,7 +2,7 @@
 # project: GPU Benchmarking
 # Purpose: Seamless visualization of Non-GPU statistics
 # Start Date: 6/28/2023
-# Last Updated:9/22/2024
+# Last Updated:10/24/2024
 import csv
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,6 +28,17 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     -------
     None
     """
+
+    gpu_df = gpu_dfs[0]
+    print("Head:\n",gpu_df.head(),"\nTail\n", gpu_df.tail())
+    print("\nHead:\n",cpu_ram_util_df.head(),"\nTail\n", cpu_ram_util_df.tail())
+
+
+
+    # Check if the shapes of the dataframes are correct
+    assert len(cpu_ram_util_df) == len(gpu_dfs[0]), \
+      "Dataframes are not the same length\ndf1: {}\ndf2: {}".format(len(cpu_ram_util_df), len(gpu_dfs[0]))
+
     cpu_timestamps = cpu_ram_util_df['Timestamp (Unix)'].tolist()
     cpu_utilization = cpu_ram_util_df['CPU Utilization (%)'].tolist()
     if not cpu_timestamps or not cpu_utilization:
@@ -41,7 +52,9 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     zipped_timestamps = zip(*all_timestamps)
     average_timestamps = [sum(timestamps) / len(timestamps) for timestamps in zipped_timestamps]
     start_time = average_timestamps[0]
+    print("Start Time:", start_time)
     elapsed_time = [round(t-start_time, 2) for t in average_timestamps]
+    print(len(elapsed_time), len(cpu_utilization))
 
     # Plot CPU Utilization
     plt.plot(elapsed_time, cpu_utilization, linestyle='-', marker='x', markersize=5, color='blue', label='CPU Utilization')
@@ -59,7 +72,6 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     plt.grid(True)
 
     # Save the plot as an image file
-    print("Saving:", save_path)
     plt.savefig(save_path, dpi=300)
     plt.close()
     
@@ -175,6 +187,7 @@ def plot_cpu_utilization(cpu_ram_util_df, save_path):
     
     # Calculate elapsed time in seconds
     start_time = timestamps[0]
+    # print("Start Time:", start_time)
     elapsed_time = [round((t - start_time), 2) for t in timestamps]
     
     # Plotting
@@ -256,6 +269,7 @@ def plot_ram_utilization_percent(cpu_ram_util_df, save_path):
     
     # Calculate elapsed time in seconds
     start_time = timestamps[0]
+    # print("Start Time:", start_time)
     elapsed_time = [round((t - start_time), 2) for t in timestamps]
 
     # plt.figure(figsize=(12, 8))
@@ -536,44 +550,27 @@ def plot_disk_write_iops(train_results_df, save_path):
     plt.close()
 
 
-def get_number_of_gpus(debug=False):
+def get_number_of_gpus(gpu_csv, debug=False):
     """
-    Get Number of CUDA-enabled GPUs
-
-    This function retrieves the number of CUDA-enabled GPUs available on the system using PyTorch's utilities. It can optionally print the count for debugging purposes.
+    Finds the number of GPUs found in the GPU CSV file.
 
     Parameters
     ----------
+    gpu_csv : str
+        The path to the GPU CSV file.
     debug : bool, optional
-        If set to True, the function will print the number of CUDA-enabled GPUs. Default is False.
+        If True, will print number of GPUs (default is False).
 
     Returns
     -------
-    int or None
-        Returns the number of CUDA-enabled GPUs if successful, or None if an error occurs.
-
-    Processes
-    ----------
-    - Utilizes PyTorch's `torch.cuda.device_count()` to get the count of CUDA-enabled GPUs.
-    - If the debug parameter is True, prints the number of GPUs.
-    - Handles exceptions by printing an error message and returning None.
-
-    Notes
-    -----
-    - This function requires PyTorch to be installed and properly configured with CUDA support.
-    - It is useful for dynamically adjusting resource allocation based on the number of available GPUs.
-    - The function handles exceptions gracefully, making it robust for use in environments where CUDA may not be available or properly configured.
+    int
+        The number of GPUs found in the CSV file.
     """
-    try:
-        # Get the list of CUDA-enabled devices
-        cuda_devices = torch.cuda.device_count()
-        if debug:
-            print(f"Number of CUDA-enabled GPUs: {cuda_devices}")
-        return cuda_devices
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
+    gpu_df = pd.read_csv(gpu_csv)
+    gpu_nums = gpu_df['GPU ID'].nunique()
+    if debug:
+        print(f'Found {gpu_nums} GPUs in the CSV file.')
+    return gpu_nums
 
 def process_gpu_log(logfile, gpu_nums):
     """
@@ -1024,6 +1021,92 @@ def write_to_csv(file_path, headers, data):
         csv_writer.writerows(data)
     print(f"Data successfully written to {file_path}.")
 
+def sync_graph_timestamps(cpu_ram_df, gpu_dfs, training_res_df):
+    """
+    Ensures that all CSV files have the same beginning and ending timestamps.
+    This will ensure that all graphs are aligned and can be compared accurately.
+
+    Parameters
+    ----------
+    cpu_ram_df : Pandas DataFrame
+        The path to the CPU/RAM utilization CSV file.
+    gpu_dfs : list of Pandas DataFrames
+        A list of DataFrames, where each DataFrame contains the GPU metrics for a single GPU.
+    training_res_df : Pandas DataFrame
+        The path to the training results CSV file.
+
+    Processes
+    ----------
+    - Reads the timestamps from all dataframes.
+    - Determines the earliest and latest timestamps across all files.
+    - Prepends and appends each dataframe with the earliest and latest timestamps respectively.
+      all other values are set to NaN, except for the GPU ID which is set to the appropriate value.
+
+    Returns
+    -------
+    cpu_ram_df : Pandas DataFrame
+        The CPU/RAM utilization DataFrame with the new timestamps.
+    ret_gpu_dfs : list of Pandas DataFrames
+        A list of DataFrames, where each DataFrame contains the GPU metrics for a single GPU with the new timestamps.
+    training_res_df : Pandas DataFrame
+        The training results DataFrame with the new timestamps.
+    """
+    # print("gpu: ", gpu_dfs[0].head())
+    # print("cpu_ram: ", cpu_ram_df.head())
+    # print("gpu:", gpu_dfs[0].tail())
+    # print("cpu_ram: ", cpu_ram_df.tail())
+
+    # Assert that each GPU dataframe is the same size
+    for i in range(1, len(gpu_dfs)):
+        assert len(gpu_dfs[i]) == len(gpu_dfs[0]), \
+            f"GPU DataFrame {i} is not the same length as GPU DataFrame 0"
+
+    # Assert that the CPU/RAM dataframe is the same size as the GPU dataframes
+    assert len(gpu_dfs[0]) == len(cpu_ram_df), \
+        f"GPU DataFrame 0 is not the same length as CPU/RAM DataFrame: {len(gpu_dfs[0])} != {len(cpu_ram_df)}"
+
+    # Get the earliest and latest timestamps across the gpus
+    min_gpu_timestamp = min([gpu_df['Timestamp (Unix)'].min() for gpu_df in gpu_dfs])
+    max_gpu_timestamp = max([gpu_df['Timestamp (Unix)'].max() for gpu_df in gpu_dfs])
+    # print(min_gpu_timestamp, "min_gpu_timestamp")
+    # print(max_gpu_timestamp, "max_gpu_timestamp")
+
+    # Get the earliest and latest timestamps across all files
+    min_timestamp = min(cpu_ram_df['Timestamp (Unix)'].min(),
+                        min_gpu_timestamp,
+                        training_res_df['Timestamp (Unix)'].min())
+    max_timestamp = max(cpu_ram_df['Timestamp (Unix)'].max(),
+                        max_gpu_timestamp,
+                        training_res_df['Timestamp (Unix)'].max())
+
+    # Add the min and max timestamps to the beginning and end of generic dataframes
+    def _add_min_max_timestamps(df):
+        df = df.sort_values(by='Timestamp (Unix)').reset_index(drop=True)
+        df = pd.concat([pd.DataFrame({'Timestamp (Unix)': [min_timestamp]}), df], ignore_index=True)
+        df = pd.concat([df, pd.DataFrame({'Timestamp (Unix)': [max_timestamp]})], ignore_index=True)
+        df = df.fillna(0)
+        return df
+    
+    cpu_ram_df =_add_min_max_timestamps(cpu_ram_df)
+    training_res_df = _add_min_max_timestamps(training_res_df)
+
+    # Add the min and max timestamps to the beginning and end of each GPU dataframe
+    ret_gpu_dfs = []
+    for gpu_df in gpu_dfs:
+        gpu_df = gpu_df.sort_values(by='Timestamp (Unix)').reset_index(drop=True)
+        gpu_ID = gpu_df['GPU ID'][0]
+        gpu_df = pd.concat([pd.DataFrame({'Timestamp (Unix)': [min_timestamp], 'GPU ID': [gpu_ID]}), gpu_df], ignore_index=True)
+        gpu_df = pd.concat([gpu_df, pd.DataFrame({'Timestamp (Unix)': [max_timestamp], 'GPU ID': [gpu_ID]})], ignore_index=True)
+        gpu_df = gpu_df.fillna(0)
+        ret_gpu_dfs.append(gpu_df)
+
+    # print("gpu: ", ret_gpu_dfs[0].head())
+    # print("cpu_ram: ", cpu_ram_df.head())
+    # print("gpu:", ret_gpu_dfs[0].tail())
+    # print("cpu_ram: ", cpu_ram_df.tail())
+
+    return cpu_ram_df, ret_gpu_dfs, training_res_df
+
 
 def preprocess_data(InputDirectory: str):
     """
@@ -1056,24 +1139,30 @@ def preprocess_data(InputDirectory: str):
     - The function prints a message before and after the preprocessing steps to provide feedback on the operation's progress.
     """
     project_directory = get_project_directory()
-    remove_nul_from_csv(os.path.join(InputDirectory, 'training_results.csv'),
-                        os.path.join(InputDirectory, 'training_results.csv'))
-    remove_nul_from_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'),
-                        os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
 
-    remove_non_ascii(os.path.join(InputDirectory, 'training_results.csv'),
-                     os.path.join(InputDirectory, 'training_results.csv'))
-    remove_non_ascii(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'),
-                     os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
 
-    remove_redundant_headers(os.path.join(InputDirectory, 'training_results.csv'))
-    remove_redundant_headers(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
+    cpu_ram_file = os.path.join(project_directory, InputDirectory, 'CPU_RAM_Utilization.csv')
+    gpu_file = os.path.join(project_directory, InputDirectory, 'GPU_Utilization.csv')
+    training_res_file = os.path.join(project_directory, InputDirectory, 'training_results.csv')
+    remove_nul_from_csv(cpu_ram_file, cpu_ram_file)
+    remove_nul_from_csv(gpu_file, gpu_file)
+    remove_nul_from_csv(training_res_file, training_res_file)
 
-    clean_strings_quotes_from_csv(os.path.join(InputDirectory, 'training_results.csv'))
-    clean_strings_quotes_from_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
+    remove_non_ascii(cpu_ram_file, cpu_ram_file)
+    remove_non_ascii(gpu_file, gpu_file)
+    remove_non_ascii(training_res_file, training_res_file)
+                     
+    remove_redundant_headers(cpu_ram_file)
+    remove_redundant_headers(gpu_file)
+    remove_redundant_headers(training_res_file)
 
-    remove_quotes_from_csv(os.path.join(InputDirectory, 'training_results.csv'))
-    remove_quotes_from_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
+    clean_strings_quotes_from_csv(cpu_ram_file)
+    clean_strings_quotes_from_csv(gpu_file)
+    clean_strings_quotes_from_csv(training_res_file)
+
+    remove_quotes_from_csv(cpu_ram_file)
+    remove_quotes_from_csv(gpu_file)
+    remove_quotes_from_csv(training_res_file)
 
 
 def get_project_directory():
@@ -1141,38 +1230,36 @@ def generate_graphs(InputDirectory: str, GraphDirectory: str):
     - Ensure that the CSV and log files are correctly formatted and accessible.
     - The function assumes the presence of specific columns in the CSV files for each metric.
     """
-    os.makedirs(os.path.join(InputDirectory, GraphDirectory), exist_ok=True)
+    graphs_dir = os.path.join(InputDirectory, GraphDirectory)
+    os.makedirs(graphs_dir, exist_ok=True)
     training_results = pd.read_csv(os.path.join(InputDirectory, 'training_results.csv'))
     cpu_ram_utilization = pd.read_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
 
+    # GPUS
+    gpu_logfile = os.path.join(InputDirectory, 'GPU_Utilization.csv')
+    gpu_nums = get_number_of_gpus(gpu_logfile, debug=False)
+    gpu_dfs = process_gpu_log(open(gpu_logfile, 'r'), gpu_nums)
+
+    # Sync timestamps across all dataframes
+    cpu_ram_utilization, gpu_dfs, training_results=sync_graph_timestamps(cpu_ram_utilization, gpu_dfs, training_results)
     
     print("Generating Graphs...")
     plot_training_loss(training_results,
                        os.path.join(InputDirectory, GraphDirectory, 'training_loss.png'))
-    # plot_throughput(training_results,
-    #                 os.path.join(InputDirectory, GraphDirectory, 'throughput.png'))
-    # plot_disk_read_iops(training_results,
-    #                     os.path.join(InputDirectory, GraphDirectory, 'disk_read_iops.png'))
-    # plot_disk_write_iops(training_results,
-    #                      os.path.join(InputDirectory, GraphDirectory, 'disk_write_iops.png'))
     plot_disk_iops(training_results,
                    os.path.join(InputDirectory, GraphDirectory, 'disk_iops.png'))
     plot_cpu_utilization(cpu_ram_utilization,
                          os.path.join(InputDirectory, GraphDirectory, 'cpu_utilization_percent.png'))
-    # plot_thread_count(cpu_ram_utilization,
-    #                   os.path.join(InputDirectory, GraphDirectory, 'thread_count.png'))
     plot_ram_utilization_percent(cpu_ram_utilization,
                                  os.path.join(InputDirectory, GraphDirectory, 'ram_utilization_percent.png'))
     plot_ram_utilization_mb(cpu_ram_utilization,
                             os.path.join(InputDirectory, GraphDirectory, 'ram_utilization_mb.png'))
 
-    # GPUS
-    gpu_logfile = os.path.join(InputDirectory, 'GPU_Utilization.csv')
-    gpu_nums = get_number_of_gpus(debug=False)
-    gpu_dfs = process_gpu_log(open(gpu_logfile, 'r'), gpu_nums)
-    log_path = os.path.join(InputDirectory, GraphDirectory)
-    plot_gpu_utilization(gpu_dfs, log_path)
-    plot_cpu_and_gpu_utilization(cpu_ram_utilization, gpu_dfs, os.path.join(InputDirectory, GraphDirectory,"cpu_gpu_utilization.png"))
+
+    
+
+    plot_gpu_utilization(gpu_dfs, graphs_dir)
+    plot_cpu_and_gpu_utilization(cpu_ram_utilization, gpu_dfs, os.path.join(graphs_dir,"cpu_gpu_utilization.png"))
 
 
 # Function to measure execution time
@@ -1235,19 +1322,11 @@ def all_inclusive_plots(InputDirectory: str, GraphDirectory: str):
 
 
 if __name__ == "__main__":
-    InputDirectory = "classif"
+    import argparse
+    parser = argparse.ArgumentParser(description='Generate Graphs for Model Analysis from CSV Files')
+    parser.add_argument('input', type=str, help='Input directory containing CSV files')
+    args = parser.parse_args()
+
     GraphDirectory = "graphs"
 
-    all_inclusive_plots(InputDirectory, GraphDirectory)
-
-    # os.makedirs(os.path.join(InputDirectory, GraphDirectory), exist_ok=True)
-    # cpu_ram_utilization = pd.read_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
-
-    # gpu_logfile = os.path.join(InputDirectory, 'gpustat.csv')
-    # gpu_nums = get_number_of_gpus(debug=False)
-    # gpu_dfs = process_gpu_log(open(gpu_logfile, 'r'), gpu_nums)
-    # log_path = os.path.join(InputDirectory, GraphDirectory)
-    # plot_gpu_utilization(gpu_dfs, log_path)
-    # plot_cpu_and_gpu_utilization(cpu_ram_utilization, gpu_dfs, os.path.join(InputDirectory, GraphDirectory,"cpu_gpu_utilization.png"))
-
-    # remove_redundant_headers("graphtest/gpustat.csv")
+    all_inclusive_plots(args.input, GraphDirectory)
