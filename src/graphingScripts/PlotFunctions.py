@@ -11,7 +11,7 @@ import os
 import pandas as pd
 import torch
 
-def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
+def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path, min_time, max_time):
     """
     Plot CPU utilization and GPU utilization both against time.
 
@@ -30,10 +30,6 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     """
 
     gpu_df = gpu_dfs[0]
-    print("Head:\n",gpu_df.head(),"\nTail\n", gpu_df.tail())
-    print("\nHead:\n",cpu_ram_util_df.head(),"\nTail\n", cpu_ram_util_df.tail())
-
-
 
     # Check if the shapes of the dataframes are correct
     assert len(cpu_ram_util_df) == len(gpu_dfs[0]), \
@@ -51,11 +47,9 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     all_timestamps = [cpu_timestamps] + gpu_timestamps
     zipped_timestamps = zip(*all_timestamps)
     average_timestamps = [sum(timestamps) / len(timestamps) for timestamps in zipped_timestamps]
-    start_time = average_timestamps[0]
-    print("Start Time:", start_time)
-    elapsed_time = [round(t-start_time, 2) for t in average_timestamps]
-    print(len(elapsed_time), len(cpu_utilization))
-
+    
+    elapsed_time = [round(t-min_time, 2) for t in average_timestamps]
+    
     # Plot CPU Utilization
     plt.plot(elapsed_time, cpu_utilization, linestyle='-', marker='x', markersize=5, color='blue', label='CPU Utilization')
 
@@ -72,6 +66,7 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     plt.grid(True)
 
     # Save the plot as an image file
+    plt.xlim(left=-10)
     plt.savefig(save_path, dpi=300)
     plt.close()
     
@@ -157,7 +152,7 @@ def plot_all_columns(file_path, save_path):
     print(f'Average RAM Utilization (MB): {ram_mb_avg:.2f}')
 
 
-def plot_cpu_utilization(cpu_ram_util_df, save_path):
+def plot_cpu_utilization(cpu_ram_util_df, save_path, min_time, max_time):
     """
     THIS FUNCTION IS NOT USED ANYMORE
     
@@ -186,9 +181,7 @@ def plot_cpu_utilization(cpu_ram_util_df, save_path):
         return
     
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    # print("Start Time:", start_time)
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
     
     # Plotting
     plt.plot(elapsed_time, cpu_utilization, marker='o', markersize=5, color='blue', linestyle='-')
@@ -196,6 +189,8 @@ def plot_cpu_utilization(cpu_ram_util_df, save_path):
     plt.ylabel('CPU Utilization (%)', fontsize=14)
     # plt.title('CPU Utilization')
     plt.grid(True)
+
+    plt.xlim(left=-10)
 
     plt.savefig(save_path, dpi=300)
     plt.close()
@@ -228,8 +223,7 @@ def plot_thread_count(cpu_ram_util_df, save_path):
         return
     
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
     # Plotting
     plt.scatter(elapsed_time, thread_count, marker='o', color='red', label='Thread Count', alpha=0.5, s=5)
@@ -242,7 +236,7 @@ def plot_thread_count(cpu_ram_util_df, save_path):
     plt.close()
 
 
-def plot_ram_utilization_percent(cpu_ram_util_df, save_path):
+def plot_ram_utilization_percent(cpu_ram_util_df, save_path, min_time, max_time):
     """
     Plot RAM Utilization (Percentage)
 
@@ -268,9 +262,7 @@ def plot_ram_utilization_percent(cpu_ram_util_df, save_path):
         return
     
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    # print("Start Time:", start_time)
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
     # plt.figure(figsize=(12, 8))
     # Plotting
@@ -279,11 +271,12 @@ def plot_ram_utilization_percent(cpu_ram_util_df, save_path):
     plt.ylabel('RAM Utilization (%)', fontsize=14)
     # plt.title('RAM Utilization (%)')
     plt.grid(True)
+    plt.xlim(left=-10)
     plt.savefig(save_path, dpi=300)
     plt.close()
 
 
-def plot_ram_utilization_mb(cpu_ram_util_df, save_path):
+def plot_ram_utilization_mb(cpu_ram_util_df, save_path, min_time, max_time):
     """
     Plot RAM Utilization (MB)
 
@@ -309,8 +302,7 @@ def plot_ram_utilization_mb(cpu_ram_util_df, save_path):
         return
     
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
     
     # Plotting
@@ -322,11 +314,12 @@ def plot_ram_utilization_mb(cpu_ram_util_df, save_path):
     plt.grid(True)
     # Save the plot as an image file
     # plt.legend()
+    plt.xlim(left=-10)
     plt.savefig(save_path, dpi=300)
     plt.close()
 
 
-def plot_training_loss(train_results_df, save_path):
+def plot_training_loss(train_results_df, save_path, min_time, max_time):
     """
     Plot Training Loss
 
@@ -351,9 +344,8 @@ def plot_training_loss(train_results_df, save_path):
         print('ERROR: Could not extract data from file to plot training loss.')
         return
     
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
-
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
+    print("min_time: ", min_time, "elapsed_time: ", elapsed_time)
     # Plotting
     # plt.figure(figsize=(12, 8))
     plt.plot(elapsed_time, training_loss, marker='o', markersize=5, color='blue', linestyle='-')
@@ -361,6 +353,8 @@ def plot_training_loss(train_results_df, save_path):
     plt.ylabel('Training Loss', fontsize=14)
     # plt.title('Training Loss')
     plt.grid(True)
+
+    plt.xlim(left=-10)
 
     # Save the plot as an image file
     # plt.legend()
@@ -408,7 +402,7 @@ def plot_throughput(train_results_df, save_path):
     plt.close()
 
 
-def plot_disk_iops(train_results_df, save_path):
+def plot_disk_iops(train_results_df, save_path, min_time, max_time):
     """
     Plot Disk IOPS
 
@@ -436,8 +430,7 @@ def plot_disk_iops(train_results_df, save_path):
         return
 
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
     # Plotting
     plt.figure(figsize=(12, 8))
@@ -450,7 +443,7 @@ def plot_disk_iops(train_results_df, save_path):
     plt.yticks(fontsize=font_size)
     plt.legend(fontsize=font_size)
     plt.grid(True)
-
+    plt.xlim(left=-10)
     # Save the plot as an image file
     plt.savefig(save_path, dpi=300)
     plt.close()
@@ -604,7 +597,7 @@ def process_gpu_log(logfile, gpu_nums):
     
 
 
-def plot_gpu_utilization(gpu_dfs, log_path):
+def plot_gpu_utilization(gpu_dfs, log_path, min_time, max_time):
     """
     Plot GPU Utilization Metrics
 
@@ -653,8 +646,7 @@ def plot_gpu_utilization(gpu_dfs, log_path):
             return
         
         # Calculate elapsed time in seconds
-        start_time = timestamps[0]
-        elapsed_time = [round((t - start_time), 2) for t in timestamps]
+        elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
         plt.subplot(1, gpu_nums, i + 1)
         plt.plot(elapsed_time, gpu_utilization, marker='o', markersize=5, linestyle='-', label=f'GPU {i + 1}')
@@ -663,6 +655,7 @@ def plot_gpu_utilization(gpu_dfs, log_path):
         plt.ylim(-5, 100)
         plt.legend()
 
+    plt.xlim(left=-10)
     plt.tight_layout()
     # Save the figure to a file
     plt.savefig(os.path.join(log_path,'gpu_utilization.png'))
@@ -1021,10 +1014,9 @@ def write_to_csv(file_path, headers, data):
         csv_writer.writerows(data)
     print(f"Data successfully written to {file_path}.")
 
-def sync_graph_timestamps(cpu_ram_df, gpu_dfs, training_res_df):
+def find_min_max_timestamps(cpu_ram_df, gpu_dfs, training_res_df):
     """
-    Ensures that all CSV files have the same beginning and ending timestamps.
-    This will ensure that all graphs are aligned and can be compared accurately.
+    Finds the absolute earliest and latest timestamps across all dataframes.
 
     Parameters
     ----------
@@ -1035,41 +1027,17 @@ def sync_graph_timestamps(cpu_ram_df, gpu_dfs, training_res_df):
     training_res_df : Pandas DataFrame
         The path to the training results CSV file.
 
-    Processes
-    ----------
-    - Reads the timestamps from all dataframes.
-    - Determines the earliest and latest timestamps across all files.
-    - Prepends and appends each dataframe with the earliest and latest timestamps respectively.
-      all other values are set to NaN, except for the GPU ID which is set to the appropriate value.
-
     Returns
     -------
-    cpu_ram_df : Pandas DataFrame
-        The CPU/RAM utilization DataFrame with the new timestamps.
-    ret_gpu_dfs : list of Pandas DataFrames
-        A list of DataFrames, where each DataFrame contains the GPU metrics for a single GPU with the new timestamps.
-    training_res_df : Pandas DataFrame
-        The training results DataFrame with the new timestamps.
+    min_timestamp : int
+        The earliest timestamp found across all dataframes.
+    max_timestamp : int
+        The latest timestamp found across all dataframes.
     """
-    # print("gpu: ", gpu_dfs[0].head())
-    # print("cpu_ram: ", cpu_ram_df.head())
-    # print("gpu:", gpu_dfs[0].tail())
-    # print("cpu_ram: ", cpu_ram_df.tail())
-
-    # Assert that each GPU dataframe is the same size
-    for i in range(1, len(gpu_dfs)):
-        assert len(gpu_dfs[i]) == len(gpu_dfs[0]), \
-            f"GPU DataFrame {i} is not the same length as GPU DataFrame 0"
-
-    # Assert that the CPU/RAM dataframe is the same size as the GPU dataframes
-    assert len(gpu_dfs[0]) == len(cpu_ram_df), \
-        f"GPU DataFrame 0 is not the same length as CPU/RAM DataFrame: {len(gpu_dfs[0])} != {len(cpu_ram_df)}"
 
     # Get the earliest and latest timestamps across the gpus
     min_gpu_timestamp = min([gpu_df['Timestamp (Unix)'].min() for gpu_df in gpu_dfs])
     max_gpu_timestamp = max([gpu_df['Timestamp (Unix)'].max() for gpu_df in gpu_dfs])
-    # print(min_gpu_timestamp, "min_gpu_timestamp")
-    # print(max_gpu_timestamp, "max_gpu_timestamp")
 
     # Get the earliest and latest timestamps across all files
     min_timestamp = min(cpu_ram_df['Timestamp (Unix)'].min(),
@@ -1079,33 +1047,7 @@ def sync_graph_timestamps(cpu_ram_df, gpu_dfs, training_res_df):
                         max_gpu_timestamp,
                         training_res_df['Timestamp (Unix)'].max())
 
-    # Add the min and max timestamps to the beginning and end of generic dataframes
-    def _add_min_max_timestamps(df):
-        df = df.sort_values(by='Timestamp (Unix)').reset_index(drop=True)
-        df = pd.concat([pd.DataFrame({'Timestamp (Unix)': [min_timestamp]}), df], ignore_index=True)
-        df = pd.concat([df, pd.DataFrame({'Timestamp (Unix)': [max_timestamp]})], ignore_index=True)
-        df = df.fillna(0)
-        return df
-    
-    cpu_ram_df =_add_min_max_timestamps(cpu_ram_df)
-    training_res_df = _add_min_max_timestamps(training_res_df)
-
-    # Add the min and max timestamps to the beginning and end of each GPU dataframe
-    ret_gpu_dfs = []
-    for gpu_df in gpu_dfs:
-        gpu_df = gpu_df.sort_values(by='Timestamp (Unix)').reset_index(drop=True)
-        gpu_ID = gpu_df['GPU ID'][0]
-        gpu_df = pd.concat([pd.DataFrame({'Timestamp (Unix)': [min_timestamp], 'GPU ID': [gpu_ID]}), gpu_df], ignore_index=True)
-        gpu_df = pd.concat([gpu_df, pd.DataFrame({'Timestamp (Unix)': [max_timestamp], 'GPU ID': [gpu_ID]})], ignore_index=True)
-        gpu_df = gpu_df.fillna(0)
-        ret_gpu_dfs.append(gpu_df)
-
-    # print("gpu: ", ret_gpu_dfs[0].head())
-    # print("cpu_ram: ", cpu_ram_df.head())
-    # print("gpu:", ret_gpu_dfs[0].tail())
-    # print("cpu_ram: ", cpu_ram_df.tail())
-
-    return cpu_ram_df, ret_gpu_dfs, training_res_df
+    return min_timestamp, max_timestamp
 
 
 def preprocess_data(InputDirectory: str):
@@ -1241,25 +1183,17 @@ def generate_graphs(InputDirectory: str, GraphDirectory: str):
     gpu_dfs = process_gpu_log(open(gpu_logfile, 'r'), gpu_nums)
 
     # Sync timestamps across all dataframes
-    cpu_ram_utilization, gpu_dfs, training_results=sync_graph_timestamps(cpu_ram_utilization, gpu_dfs, training_results)
+    min_time, max_time=find_min_max_timestamps(cpu_ram_utilization, gpu_dfs, training_results)
     
     print("Generating Graphs...")
-    plot_training_loss(training_results,
-                       os.path.join(InputDirectory, GraphDirectory, 'training_loss.png'))
-    plot_disk_iops(training_results,
-                   os.path.join(InputDirectory, GraphDirectory, 'disk_iops.png'))
-    plot_cpu_utilization(cpu_ram_utilization,
-                         os.path.join(InputDirectory, GraphDirectory, 'cpu_utilization_percent.png'))
-    plot_ram_utilization_percent(cpu_ram_utilization,
-                                 os.path.join(InputDirectory, GraphDirectory, 'ram_utilization_percent.png'))
-    plot_ram_utilization_mb(cpu_ram_utilization,
-                            os.path.join(InputDirectory, GraphDirectory, 'ram_utilization_mb.png'))
+    plot_training_loss(training_results, os.path.join(graphs_dir, 'training_loss.png'), min_time, max_time)
+    plot_disk_iops(training_results, os.path.join(graphs_dir, 'disk_iops.png'), min_time, max_time)
+    plot_cpu_utilization(cpu_ram_utilization, os.path.join(graphs_dir, 'cpu_utilization_percent.png'), min_time, max_time)
+    plot_ram_utilization_percent(cpu_ram_utilization, os.path.join(graphs_dir, 'ram_utilization_percent.png'), min_time, max_time)
+    plot_ram_utilization_mb(cpu_ram_utilization, os.path.join(graphs_dir, 'ram_utilization_mb.png'), min_time, max_time)
 
-
-    
-
-    plot_gpu_utilization(gpu_dfs, graphs_dir)
-    plot_cpu_and_gpu_utilization(cpu_ram_utilization, gpu_dfs, os.path.join(graphs_dir,"cpu_gpu_utilization.png"))
+    plot_gpu_utilization(gpu_dfs, graphs_dir, min_time, max_time)
+    plot_cpu_and_gpu_utilization(cpu_ram_utilization, gpu_dfs, os.path.join(graphs_dir,"cpu_gpu_utilization.png"), min_time, max_time)
 
 
 # Function to measure execution time
