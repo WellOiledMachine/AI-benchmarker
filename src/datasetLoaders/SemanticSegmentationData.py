@@ -20,32 +20,31 @@ class GeneralizedDatasetLoader: # Added by Tyson Limato, Requires Validation. Us
     ----------
     dataset_name : str
         The name of the dataset to load.
+    label_map : str
+        Path to label mapping file or Hugging Face repo (format: 'repo_id:filename')
     seed : int, optional
         The value used to initialize the random number generator for reproducible data splits.
     test_size : float, optional
         The proportion of the dataset to include in the test split.
     preprocess_params : dict, optional
         Parameters for preprocessing functions such as brightness, contrast, saturation, and hue.
-    repo_id : str, optional
-        The repository ID on Hugging Face from which to download additional resources like id2label mapping.
-    filename : str, optional
-        The filename of the additional resource to download from the repository.
 
     Description
     -----------
     This class loads a dataset, splits it into training and testing data, preprocesses the data,
     and can load additional resources like id2label mappings from a Hugging Face repository.
     """
-    def __init__(self, dataset_name, seed=42, test_size=0.1, preprocess_params=None, repo_id=None, filename=None):
+    def __init__(self, dataset_name, label_map, seed=42, test_size=0.1, preprocess_params=None):
         self.data = load_dataset(dataset_name, split='train')
         self.data = self.data.shuffle(seed=seed)
         self.data = self.data.train_test_split(test_size=test_size)
 
+        self.label_map = label_map
+
         self.jitter = ColorJitter(**(preprocess_params or {'brightness': 0.25, 'contrast': 0.25, 'saturation': 0.25, 'hue': 0.1}))
         self.feature_extractor = SegformerImageProcessor()
 
-        self.repo_id = repo_id
-        self.filename = filename
+        
 
     def apply_transforms(self, example_batch, augment=False):
         images = [self.jitter(x) for x in example_batch["pixel_values"]] if augment else [x for x in example_batch["pixel_values"]]
@@ -63,24 +62,34 @@ class GeneralizedDatasetLoader: # Added by Tyson Limato, Requires Validation. Us
         test_ds.set_transform(lambda x: self.apply_transforms(x, augment=False))
         return test_ds
 
-    def get_id2label(self):
-        if not self.repo_id or not self.filename:
-            raise ValueError("Repository ID and filename must be provided to fetch id2label mapping.")
-        id2label_path = hf_hub_download(repo_id=self.repo_id, filename=self.filename, repo_type='dataset')
-        with open(id2label_path, 'r') as file:
-            id2label = json.load(file)
-        # Convert id2label dict keys from strings to integers
-        id2label_converted = {}
-        for key, value in id2label.items():
-            integer_key = int(key)  # convert the key from string to integer
-            id2label_converted[integer_key] = value  # assign the value to the new key in the new dict
+    def get_id2label_mapping(self):
+        if not self.label_map:
+            raise ValueError("Label mapping file must be provided to fetch label mapping.")
+        if ':' not in self.label_map:
+            try:
+                label_dict = json.loads(open(self.label_map, 'r').read())
+            except:
+                raise ValueError(f"Could not load label mapping from file: {self.label_map}")
+        else:
+            repo_id, filename = self.label_map.split(':')
+            label_map_path = hf_hub_download(repo_id=repo_id, filename=filename, repo_type='dataset')
+            with open(label_map_path, 'r') as file:
+                label_dict = json.load(file)
 
-        return id2label_converted
+        first_key = list(label_dict.keys())[0]
+        first_value = label_dict[first_key]
+
+        if (isinstance(first_key, str) and first_key.isdigit()) or isinstance(first_key, int):
+            id2label = {int(k): v for k, v in label_dict.items()}
+        elif (isinstance(first_value, str) and first_value.isdigit()) or isinstance(first_value, int):
+            id2label = {int(v): k for k, v in label_dict.items()}
+        
+        return id2label
 
     def __len__(self):
         return len(self.data)
 
-def open_dataset(dataset_name, seed=42, test_size=0.1, preprocess_params=None, repo_id=None, filename=None): # Added by Tyson Limato, Requires Validation. Use https://huggingface.co/datasets/EduardoPacheco/FoodSeg103
+def open_dataset(dataset_name, label_map, seed=42, test_size=0.1, preprocess_params=None, ): # Added by Tyson Limato, Requires Validation. Use https://huggingface.co/datasets/EduardoPacheco/FoodSeg103
     """
     Parameters
     ----------
@@ -115,10 +124,10 @@ def open_dataset(dataset_name, seed=42, test_size=0.1, preprocess_params=None, r
     """
     
     print(f'Loading Training Data Files for {dataset_name}...')
-    ds = GeneralizedDatasetLoader(dataset_name, seed=seed, test_size=test_size, preprocess_params=preprocess_params, repo_id=repo_id, filename=filename)
+    ds = GeneralizedDatasetLoader(dataset_name, label_map, seed=seed, test_size=test_size, preprocess_params=preprocess_params)
     train_data = ds.get_train_data()
     test_data = ds.get_test_data()
-    id2label = ds.get_id2label()
+    id2label = ds.get_id2label_mapping()
     
     return train_data, test_data, id2label
 

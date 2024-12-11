@@ -345,7 +345,7 @@ def plot_training_loss(train_results_df, save_path, min_time, max_time):
         return
     
     elapsed_time = [round((t - min_time), 2) for t in timestamps]
-    print("min_time: ", min_time, "elapsed_time: ", elapsed_time)
+    # print("min_time: ", min_time, "elapsed_time: ", elapsed_time)
     # Plotting
     # plt.figure(figsize=(12, 8))
     plt.plot(elapsed_time, training_loss, marker='o', markersize=5, color='blue', linestyle='-')

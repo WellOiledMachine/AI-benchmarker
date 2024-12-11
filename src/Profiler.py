@@ -15,7 +15,7 @@ class monitor_system_utilization:
     def __init__(self, interval=None, output_dir=None, pid=os.getpid(), update_iteration=100):
         self.interval = max(1, interval)  # Ensure the interval is at least 1 second
         self.output_dir = output_dir
-        self.update_iteration = max(1, update_iteration)  # Ensure the interval is at least 1 iteration
+        self.update_iteration = max(1, update_iteration)  # Ensure the update interval is at least 1 iteration
         self.cpu_ram_file_path = os.path.join(self.output_dir, "CPU_RAM_Utilization.csv")
         self.monitor_process = None
         self.running = True  # Flag to control the monitoring loop
@@ -25,9 +25,7 @@ class monitor_system_utilization:
         
 
     def start_monitoring(self):
-        self.monitor_process = multiprocessing.Process(target=self.monitor_system_utilization_helper)
-        self.running = multiprocessing.Value('b', True)
-        self.monitor_process.start()
+        self.__enter__()
     
     def stop_monitoring(self):
         self.__exit__(None, None, None)
@@ -94,7 +92,9 @@ class monitor_system_utilization:
 
 
     def __enter__(self):
-        self.start_monitoring()
+        self.monitor_process = multiprocessing.Process(target=self.monitor_system_utilization_helper)
+        self.running = multiprocessing.Value('b', True)
+        self.monitor_process.start()
         return self
     
     def __exit__(self, exc_type, exc_value, traceback):

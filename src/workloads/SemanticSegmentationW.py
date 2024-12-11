@@ -3,7 +3,7 @@
 # Model: Train semantic segmentation model (Segformer) on sidewalk dataset
 # Backend: PyTorch
 
-from transformers import SegformerForSemanticSegmentation, SegformerFeatureExtractor, TrainingArguments, Trainer, TrainerCallback
+from transformers import AutoModelForSemanticSegmentation, SegformerForSemanticSegmentation, SegformerFeatureExtractor, TrainingArguments, Trainer, TrainerCallback
 from transformers.trainer_callback import TrainerControl, TrainerState
 import evaluate
 import torch
@@ -107,7 +107,7 @@ class Benchmark_Image_Segmentation_Trainer(Trainer):
         self.shared_state = shared_state
         self.batch_num = 0
         
-    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]):
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]], num_items_in_batch=None):
         """
         Parameters
         ----------
@@ -115,6 +115,8 @@ class Benchmark_Image_Segmentation_Trainer(Trainer):
             The model to be trained.
         inputs : Dict[str, Union[torch.Tensor, Any]]
             The input data for the current batch training step.
+        num_items_in_batch : int
+            The number of items in the current batch.
             
         Returns
         -------
@@ -131,7 +133,7 @@ class Benchmark_Image_Segmentation_Trainer(Trainer):
         """
         
         # Perform the normal training step defined by the Trainer class
-        loss = super().training_step(model, inputs)
+        loss = super().training_step(model=model, inputs=inputs, num_items_in_batch=num_items_in_batch)
         
         # vvv Calculate results for the benchmark vvv
         # Update disk IOPS counters

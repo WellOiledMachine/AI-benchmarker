@@ -2,8 +2,8 @@ import os
 import argparse
 import time
 
-from datasetLoaders.ImageSegData import open_SidewalkSemantics, open_scene_parse_150
-from workloads.ImageSegW import train_image_segmentation_model
+from datasetLoaders.SemanticSegmentationData import open_SidewalkSemantics, open_scene_parse_150, open_dataset
+from workloads.SemanticSegmentationW import train_image_segmentation_model
 from Profiler import monitor_system_utilization
 from utils import load_config_file, configure_output_dir
 from graphingScripts.PlotFunctions import all_inclusive_plots
@@ -27,7 +27,9 @@ def main():
     load_config_file(args)  # Load the configuration file if it exists
     configure_output_dir(args.output) # Create the output directory if it does not exist
 
-    train_data, test_data, id2label = open_SidewalkSemantics()
+    # train_data, test_data, id2label = open_SidewalkSemantics()
+    train_data, test_data, id2label = open_dataset("")
+
     monitor = monitor_system_utilization(interval=1, output_dir=args.output)
     with monitor:
         start_time = time.time()

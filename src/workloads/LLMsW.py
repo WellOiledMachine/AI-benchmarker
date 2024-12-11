@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
-    GPTQConfig,
+    BitsAndBytesConfig,
     TrainingArguments,
     Trainer,
     TrainerCallback
@@ -851,7 +851,7 @@ def create_and_prepare_GPTQ_model(model_name: str, dataset_name: str, lora_alpha
                 device_map = {"": 0}
         else:
             device_map = None
-
+    print("clear 1")
     os.makedirs(output_dir, exist_ok=True)
     cache_file_path = os.path.join(output_dir, 'quantized_model_peft_tokenizer.pkl')  # Define a file path within the directory
     # Check if the cache file already exists
@@ -864,14 +864,17 @@ def create_and_prepare_GPTQ_model(model_name: str, dataset_name: str, lora_alpha
             print(f"Failed to load cache file: {e}. Regenerating the model...")
     
     
-    # Load model quantized through gptq
+    quantize_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        device_map=device_map,
-        quantization_config=GPTQConfig(bits=4, disable_exllama=True, dataset=dataset_name),
+        quantization_config=quantize_config,
         trust_remote_code=True
     )
-    
+    print("clear 4")
     # Refer to this to explain why this is necessary: https://github.com/huggingface/transformers/pull/24906
     model.config.pretraining_tp = 1 
 
@@ -886,12 +889,13 @@ def create_and_prepare_GPTQ_model(model_name: str, dataset_name: str, lora_alpha
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
-
+    print("clear 5")
     # Cache quantized model to disk
-    with open(cache_file_path, 'wb') as cache_file:
-        dill.dump((model, peft_config, tokenizer), cache_file)
-        print(f"Processed samples cached to {cache_file_path}")
-
+    # with open(cache_file_path, 'wb') as cache_file:
+    #     dill.dump((model, peft_config, tokenizer), cache_file)
+    #     print(f"Processed samples cached to {cache_file_path}")
+    
+    print("clear 6")
     return model, peft_config, tokenizer
 
 
