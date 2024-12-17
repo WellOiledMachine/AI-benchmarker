@@ -2,7 +2,7 @@
 # project: GPU Benchmarking
 # Purpose: Seamless visualization of Non-GPU statistics
 # Start Date: 6/28/2023
-# Last Updated:9/22/2024
+# Last Updated:10/24/2024
 import csv
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +11,7 @@ import os
 import pandas as pd
 import torch
 
-def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
+def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path, min_time, max_time):
     """
     Plot CPU utilization and GPU utilization both against time.
 
@@ -28,6 +28,13 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     -------
     None
     """
+
+    gpu_df = gpu_dfs[0]
+
+    # Check if the shapes of the dataframes are correct
+    assert len(cpu_ram_util_df) == len(gpu_dfs[0]), \
+      "Dataframes are not the same length\ndf1: {}\ndf2: {}".format(len(cpu_ram_util_df), len(gpu_dfs[0]))
+
     cpu_timestamps = cpu_ram_util_df['Timestamp (Unix)'].tolist()
     cpu_utilization = cpu_ram_util_df['CPU Utilization (%)'].tolist()
     if not cpu_timestamps or not cpu_utilization:
@@ -40,9 +47,9 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     all_timestamps = [cpu_timestamps] + gpu_timestamps
     zipped_timestamps = zip(*all_timestamps)
     average_timestamps = [sum(timestamps) / len(timestamps) for timestamps in zipped_timestamps]
-    start_time = average_timestamps[0]
-    elapsed_time = [round(t-start_time, 2) for t in average_timestamps]
-
+    
+    elapsed_time = [round(t-min_time, 2) for t in average_timestamps]
+    
     # Plot CPU Utilization
     plt.plot(elapsed_time, cpu_utilization, linestyle='-', marker='x', markersize=5, color='blue', label='CPU Utilization')
 
@@ -59,7 +66,7 @@ def plot_cpu_and_gpu_utilization(cpu_ram_util_df, gpu_dfs, save_path):
     plt.grid(True)
 
     # Save the plot as an image file
-    print("Saving:", save_path)
+    plt.xlim(left=-10)
     plt.savefig(save_path, dpi=300)
     plt.close()
     
@@ -145,7 +152,7 @@ def plot_all_columns(file_path, save_path):
     print(f'Average RAM Utilization (MB): {ram_mb_avg:.2f}')
 
 
-def plot_cpu_utilization(cpu_ram_util_df, save_path):
+def plot_cpu_utilization(cpu_ram_util_df, save_path, min_time, max_time):
     """
     THIS FUNCTION IS NOT USED ANYMORE
     
@@ -174,8 +181,7 @@ def plot_cpu_utilization(cpu_ram_util_df, save_path):
         return
     
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
     
     # Plotting
     plt.plot(elapsed_time, cpu_utilization, marker='o', markersize=5, color='blue', linestyle='-')
@@ -183,6 +189,8 @@ def plot_cpu_utilization(cpu_ram_util_df, save_path):
     plt.ylabel('CPU Utilization (%)', fontsize=14)
     # plt.title('CPU Utilization')
     plt.grid(True)
+
+    plt.xlim(left=-10)
 
     plt.savefig(save_path, dpi=300)
     plt.close()
@@ -215,8 +223,7 @@ def plot_thread_count(cpu_ram_util_df, save_path):
         return
     
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
     # Plotting
     plt.scatter(elapsed_time, thread_count, marker='o', color='red', label='Thread Count', alpha=0.5, s=5)
@@ -229,7 +236,7 @@ def plot_thread_count(cpu_ram_util_df, save_path):
     plt.close()
 
 
-def plot_ram_utilization_percent(cpu_ram_util_df, save_path):
+def plot_ram_utilization_percent(cpu_ram_util_df, save_path, min_time, max_time):
     """
     Plot RAM Utilization (Percentage)
 
@@ -255,8 +262,7 @@ def plot_ram_utilization_percent(cpu_ram_util_df, save_path):
         return
     
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
     # plt.figure(figsize=(12, 8))
     # Plotting
@@ -265,11 +271,12 @@ def plot_ram_utilization_percent(cpu_ram_util_df, save_path):
     plt.ylabel('RAM Utilization (%)', fontsize=14)
     # plt.title('RAM Utilization (%)')
     plt.grid(True)
+    plt.xlim(left=-10)
     plt.savefig(save_path, dpi=300)
     plt.close()
 
 
-def plot_ram_utilization_mb(cpu_ram_util_df, save_path):
+def plot_ram_utilization_mb(cpu_ram_util_df, save_path, min_time, max_time):
     """
     Plot RAM Utilization (MB)
 
@@ -295,8 +302,7 @@ def plot_ram_utilization_mb(cpu_ram_util_df, save_path):
         return
     
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
     
     # Plotting
@@ -308,11 +314,12 @@ def plot_ram_utilization_mb(cpu_ram_util_df, save_path):
     plt.grid(True)
     # Save the plot as an image file
     # plt.legend()
+    plt.xlim(left=-10)
     plt.savefig(save_path, dpi=300)
     plt.close()
 
 
-def plot_training_loss(train_results_df, save_path):
+def plot_training_loss(train_results_df, save_path, min_time, max_time):
     """
     Plot Training Loss
 
@@ -337,9 +344,8 @@ def plot_training_loss(train_results_df, save_path):
         print('ERROR: Could not extract data from file to plot training loss.')
         return
     
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
-
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
+    print("min_time: ", min_time, "elapsed_time: ", elapsed_time)
     # Plotting
     # plt.figure(figsize=(12, 8))
     plt.plot(elapsed_time, training_loss, marker='o', markersize=5, color='blue', linestyle='-')
@@ -347,6 +353,8 @@ def plot_training_loss(train_results_df, save_path):
     plt.ylabel('Training Loss', fontsize=14)
     # plt.title('Training Loss')
     plt.grid(True)
+
+    plt.xlim(left=-10)
 
     # Save the plot as an image file
     # plt.legend()
@@ -394,7 +402,7 @@ def plot_throughput(train_results_df, save_path):
     plt.close()
 
 
-def plot_disk_iops(train_results_df, save_path):
+def plot_disk_iops(train_results_df, save_path, min_time, max_time):
     """
     Plot Disk IOPS
 
@@ -422,8 +430,7 @@ def plot_disk_iops(train_results_df, save_path):
         return
 
     # Calculate elapsed time in seconds
-    start_time = timestamps[0]
-    elapsed_time = [round((t - start_time), 2) for t in timestamps]
+    elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
     # Plotting
     plt.figure(figsize=(12, 8))
@@ -436,7 +443,7 @@ def plot_disk_iops(train_results_df, save_path):
     plt.yticks(fontsize=font_size)
     plt.legend(fontsize=font_size)
     plt.grid(True)
-
+    plt.xlim(left=-10)
     # Save the plot as an image file
     plt.savefig(save_path, dpi=300)
     plt.close()
@@ -536,44 +543,27 @@ def plot_disk_write_iops(train_results_df, save_path):
     plt.close()
 
 
-def get_number_of_gpus(debug=False):
+def get_number_of_gpus(gpu_csv, debug=False):
     """
-    Get Number of CUDA-enabled GPUs
-
-    This function retrieves the number of CUDA-enabled GPUs available on the system using PyTorch's utilities. It can optionally print the count for debugging purposes.
+    Finds the number of GPUs found in the GPU CSV file.
 
     Parameters
     ----------
+    gpu_csv : str
+        The path to the GPU CSV file.
     debug : bool, optional
-        If set to True, the function will print the number of CUDA-enabled GPUs. Default is False.
+        If True, will print number of GPUs (default is False).
 
     Returns
     -------
-    int or None
-        Returns the number of CUDA-enabled GPUs if successful, or None if an error occurs.
-
-    Processes
-    ----------
-    - Utilizes PyTorch's `torch.cuda.device_count()` to get the count of CUDA-enabled GPUs.
-    - If the debug parameter is True, prints the number of GPUs.
-    - Handles exceptions by printing an error message and returning None.
-
-    Notes
-    -----
-    - This function requires PyTorch to be installed and properly configured with CUDA support.
-    - It is useful for dynamically adjusting resource allocation based on the number of available GPUs.
-    - The function handles exceptions gracefully, making it robust for use in environments where CUDA may not be available or properly configured.
+    int
+        The number of GPUs found in the CSV file.
     """
-    try:
-        # Get the list of CUDA-enabled devices
-        cuda_devices = torch.cuda.device_count()
-        if debug:
-            print(f"Number of CUDA-enabled GPUs: {cuda_devices}")
-        return cuda_devices
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
+    gpu_df = pd.read_csv(gpu_csv)
+    gpu_nums = gpu_df['GPU ID'].nunique()
+    if debug:
+        print(f'Found {gpu_nums} GPUs in the CSV file.')
+    return gpu_nums
 
 def process_gpu_log(logfile, gpu_nums):
     """
@@ -607,7 +597,7 @@ def process_gpu_log(logfile, gpu_nums):
     
 
 
-def plot_gpu_utilization(gpu_dfs, log_path):
+def plot_gpu_utilization(gpu_dfs, log_path, min_time, max_time):
     """
     Plot GPU Utilization Metrics
 
@@ -656,8 +646,7 @@ def plot_gpu_utilization(gpu_dfs, log_path):
             return
         
         # Calculate elapsed time in seconds
-        start_time = timestamps[0]
-        elapsed_time = [round((t - start_time), 2) for t in timestamps]
+        elapsed_time = [round((t - min_time), 2) for t in timestamps]
 
         plt.subplot(1, gpu_nums, i + 1)
         plt.plot(elapsed_time, gpu_utilization, marker='o', markersize=5, linestyle='-', label=f'GPU {i + 1}')
@@ -666,6 +655,7 @@ def plot_gpu_utilization(gpu_dfs, log_path):
         plt.ylim(-5, 100)
         plt.legend()
 
+    plt.xlim(left=-10)
     plt.tight_layout()
     # Save the figure to a file
     plt.savefig(os.path.join(log_path,'gpu_utilization.png'))
@@ -1024,6 +1014,41 @@ def write_to_csv(file_path, headers, data):
         csv_writer.writerows(data)
     print(f"Data successfully written to {file_path}.")
 
+def find_min_max_timestamps(cpu_ram_df, gpu_dfs, training_res_df):
+    """
+    Finds the absolute earliest and latest timestamps across all dataframes.
+
+    Parameters
+    ----------
+    cpu_ram_df : Pandas DataFrame
+        The path to the CPU/RAM utilization CSV file.
+    gpu_dfs : list of Pandas DataFrames
+        A list of DataFrames, where each DataFrame contains the GPU metrics for a single GPU.
+    training_res_df : Pandas DataFrame
+        The path to the training results CSV file.
+
+    Returns
+    -------
+    min_timestamp : int
+        The earliest timestamp found across all dataframes.
+    max_timestamp : int
+        The latest timestamp found across all dataframes.
+    """
+
+    # Get the earliest and latest timestamps across the gpus
+    min_gpu_timestamp = min([gpu_df['Timestamp (Unix)'].min() for gpu_df in gpu_dfs])
+    max_gpu_timestamp = max([gpu_df['Timestamp (Unix)'].max() for gpu_df in gpu_dfs])
+
+    # Get the earliest and latest timestamps across all files
+    min_timestamp = min(cpu_ram_df['Timestamp (Unix)'].min(),
+                        min_gpu_timestamp,
+                        training_res_df['Timestamp (Unix)'].min())
+    max_timestamp = max(cpu_ram_df['Timestamp (Unix)'].max(),
+                        max_gpu_timestamp,
+                        training_res_df['Timestamp (Unix)'].max())
+
+    return min_timestamp, max_timestamp
+
 
 def preprocess_data(InputDirectory: str):
     """
@@ -1056,24 +1081,30 @@ def preprocess_data(InputDirectory: str):
     - The function prints a message before and after the preprocessing steps to provide feedback on the operation's progress.
     """
     project_directory = get_project_directory()
-    remove_nul_from_csv(os.path.join(InputDirectory, 'training_results.csv'),
-                        os.path.join(InputDirectory, 'training_results.csv'))
-    remove_nul_from_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'),
-                        os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
 
-    remove_non_ascii(os.path.join(InputDirectory, 'training_results.csv'),
-                     os.path.join(InputDirectory, 'training_results.csv'))
-    remove_non_ascii(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'),
-                     os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
 
-    remove_redundant_headers(os.path.join(InputDirectory, 'training_results.csv'))
-    remove_redundant_headers(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
+    cpu_ram_file = os.path.join(project_directory, InputDirectory, 'CPU_RAM_Utilization.csv')
+    gpu_file = os.path.join(project_directory, InputDirectory, 'GPU_Utilization.csv')
+    training_res_file = os.path.join(project_directory, InputDirectory, 'training_results.csv')
+    remove_nul_from_csv(cpu_ram_file, cpu_ram_file)
+    remove_nul_from_csv(gpu_file, gpu_file)
+    remove_nul_from_csv(training_res_file, training_res_file)
 
-    clean_strings_quotes_from_csv(os.path.join(InputDirectory, 'training_results.csv'))
-    clean_strings_quotes_from_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
+    remove_non_ascii(cpu_ram_file, cpu_ram_file)
+    remove_non_ascii(gpu_file, gpu_file)
+    remove_non_ascii(training_res_file, training_res_file)
+                     
+    remove_redundant_headers(cpu_ram_file)
+    remove_redundant_headers(gpu_file)
+    remove_redundant_headers(training_res_file)
 
-    remove_quotes_from_csv(os.path.join(InputDirectory, 'training_results.csv'))
-    remove_quotes_from_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
+    clean_strings_quotes_from_csv(cpu_ram_file)
+    clean_strings_quotes_from_csv(gpu_file)
+    clean_strings_quotes_from_csv(training_res_file)
+
+    remove_quotes_from_csv(cpu_ram_file)
+    remove_quotes_from_csv(gpu_file)
+    remove_quotes_from_csv(training_res_file)
 
 
 def get_project_directory():
@@ -1141,38 +1172,28 @@ def generate_graphs(InputDirectory: str, GraphDirectory: str):
     - Ensure that the CSV and log files are correctly formatted and accessible.
     - The function assumes the presence of specific columns in the CSV files for each metric.
     """
-    os.makedirs(os.path.join(InputDirectory, GraphDirectory), exist_ok=True)
+    graphs_dir = os.path.join(InputDirectory, GraphDirectory)
+    os.makedirs(graphs_dir, exist_ok=True)
     training_results = pd.read_csv(os.path.join(InputDirectory, 'training_results.csv'))
     cpu_ram_utilization = pd.read_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
 
-    
-    print("Generating Graphs...")
-    plot_training_loss(training_results,
-                       os.path.join(InputDirectory, GraphDirectory, 'training_loss.png'))
-    # plot_throughput(training_results,
-    #                 os.path.join(InputDirectory, GraphDirectory, 'throughput.png'))
-    # plot_disk_read_iops(training_results,
-    #                     os.path.join(InputDirectory, GraphDirectory, 'disk_read_iops.png'))
-    # plot_disk_write_iops(training_results,
-    #                      os.path.join(InputDirectory, GraphDirectory, 'disk_write_iops.png'))
-    plot_disk_iops(training_results,
-                   os.path.join(InputDirectory, GraphDirectory, 'disk_iops.png'))
-    plot_cpu_utilization(cpu_ram_utilization,
-                         os.path.join(InputDirectory, GraphDirectory, 'cpu_utilization_percent.png'))
-    # plot_thread_count(cpu_ram_utilization,
-    #                   os.path.join(InputDirectory, GraphDirectory, 'thread_count.png'))
-    plot_ram_utilization_percent(cpu_ram_utilization,
-                                 os.path.join(InputDirectory, GraphDirectory, 'ram_utilization_percent.png'))
-    plot_ram_utilization_mb(cpu_ram_utilization,
-                            os.path.join(InputDirectory, GraphDirectory, 'ram_utilization_mb.png'))
-
     # GPUS
     gpu_logfile = os.path.join(InputDirectory, 'GPU_Utilization.csv')
-    gpu_nums = get_number_of_gpus(debug=False)
+    gpu_nums = get_number_of_gpus(gpu_logfile, debug=False)
     gpu_dfs = process_gpu_log(open(gpu_logfile, 'r'), gpu_nums)
-    log_path = os.path.join(InputDirectory, GraphDirectory)
-    plot_gpu_utilization(gpu_dfs, log_path)
-    plot_cpu_and_gpu_utilization(cpu_ram_utilization, gpu_dfs, os.path.join(InputDirectory, GraphDirectory,"cpu_gpu_utilization.png"))
+
+    # Sync timestamps across all dataframes
+    min_time, max_time=find_min_max_timestamps(cpu_ram_utilization, gpu_dfs, training_results)
+    
+    print("Generating Graphs...")
+    plot_training_loss(training_results, os.path.join(graphs_dir, 'training_loss.png'), min_time, max_time)
+    plot_disk_iops(training_results, os.path.join(graphs_dir, 'disk_iops.png'), min_time, max_time)
+    plot_cpu_utilization(cpu_ram_utilization, os.path.join(graphs_dir, 'cpu_utilization_percent.png'), min_time, max_time)
+    plot_ram_utilization_percent(cpu_ram_utilization, os.path.join(graphs_dir, 'ram_utilization_percent.png'), min_time, max_time)
+    plot_ram_utilization_mb(cpu_ram_utilization, os.path.join(graphs_dir, 'ram_utilization_mb.png'), min_time, max_time)
+
+    plot_gpu_utilization(gpu_dfs, graphs_dir, min_time, max_time)
+    plot_cpu_and_gpu_utilization(cpu_ram_utilization, gpu_dfs, os.path.join(graphs_dir,"cpu_gpu_utilization.png"), min_time, max_time)
 
 
 # Function to measure execution time
@@ -1235,19 +1256,11 @@ def all_inclusive_plots(InputDirectory: str, GraphDirectory: str):
 
 
 if __name__ == "__main__":
-    InputDirectory = "classif"
+    import argparse
+    parser = argparse.ArgumentParser(description='Generate Graphs for Model Analysis from CSV Files')
+    parser.add_argument('input', type=str, help='Input directory containing CSV files')
+    args = parser.parse_args()
+
     GraphDirectory = "graphs"
 
-    all_inclusive_plots(InputDirectory, GraphDirectory)
-
-    # os.makedirs(os.path.join(InputDirectory, GraphDirectory), exist_ok=True)
-    # cpu_ram_utilization = pd.read_csv(os.path.join(InputDirectory, 'CPU_RAM_Utilization.csv'))
-
-    # gpu_logfile = os.path.join(InputDirectory, 'gpustat.csv')
-    # gpu_nums = get_number_of_gpus(debug=False)
-    # gpu_dfs = process_gpu_log(open(gpu_logfile, 'r'), gpu_nums)
-    # log_path = os.path.join(InputDirectory, GraphDirectory)
-    # plot_gpu_utilization(gpu_dfs, log_path)
-    # plot_cpu_and_gpu_utilization(cpu_ram_utilization, gpu_dfs, os.path.join(InputDirectory, GraphDirectory,"cpu_gpu_utilization.png"))
-
-    # remove_redundant_headers("graphtest/gpustat.csv")
+    all_inclusive_plots(args.input, GraphDirectory)
