@@ -1,4 +1,3 @@
-import csv, sys, time, os, psutil
 from accelerate import accelerator
 import torch
 from datasets import tqdm, load_dataset
@@ -8,7 +7,7 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
-    GPTQConfig,
+    BitsAndBytesConfig,
     TrainingArguments,
     Trainer,
     TrainerCallback
@@ -23,12 +22,13 @@ import dill
 from evaluate import load as load_metric
 import torch
 import os
+import sys
 import csv
 import time
 import psutil
 import math
+import traceback
 from typing import Dict, Union, Any
-
 
 
 def infer_txt_generator(prompt, modelI, tokenizerI):
@@ -87,7 +87,7 @@ def train_model_txt_generator(model_name, trainer_data, model_pass, accelerator:
     with open(file_path, mode='w', newline='') as results_file:
         writer = csv.writer(results_file)
         writer.writerow(['Epoch', 'Batch', 'Training Loss', 'Time', 'Throughput (Seq/sec)', 'Disk Read IOPS', 'Disk Write IOPS'])
-    
+
     try:
         for epochR in range(epoch_pass):
             training_losses = []
@@ -159,7 +159,7 @@ def train_model_txt_generator(model_name, trainer_data, model_pass, accelerator:
             accelerator.free_memory()
     except Exception as e:
         # Handle exception and log error message
-        print("Error:", e)
+        print(traceback.format_exc())
         # Close the CSV file properly
         sys.exit(1)
     except KeyboardInterrupt:
@@ -301,7 +301,7 @@ def pretrain_model_txt_generator(model_name, training_data_loader, modelPM, acce
             accelerator.free_memory()
     except Exception as e:
         # Handle exception and log error message
-        print("Error:", e)
+        print(traceback.format_exc())
         # Close the CSV file properly
         sys.exit(1)
     except KeyboardInterrupt:
@@ -440,7 +440,7 @@ def train_model_BERT(model_name, trainer_data, model_pass, accelerator: accelera
             accelerator.free_memory()
     except Exception as e:
         # Handle exception and log error message
-        print("Error:", e)
+        print(traceback.format_exc())
         # Close the CSV file properly
         sys.exit(1)
     except KeyboardInterrupt:
@@ -576,7 +576,7 @@ def pretrain_model_BERT(model_name, training_data_loader, modelPM, optimizer, sc
             accelerator.free_memory()
     except Exception as e:
         # Handle exception and log error message
-        print("Error:", e)
+        print(traceback.format_exc())
         # Close the CSV file properly
         sys.exit(1)
     except KeyboardInterrupt:
@@ -851,7 +851,7 @@ def create_and_prepare_GPTQ_model(model_name: str, dataset_name: str, lora_alpha
                 device_map = {"": 0}
         else:
             device_map = None
-
+    
     os.makedirs(output_dir, exist_ok=True)
     cache_file_path = os.path.join(output_dir, 'quantized_model_peft_tokenizer.pkl')  # Define a file path within the directory
     # Check if the cache file already exists
@@ -864,11 +864,14 @@ def create_and_prepare_GPTQ_model(model_name: str, dataset_name: str, lora_alpha
             print(f"Failed to load cache file: {e}. Regenerating the model...")
     
     
-    # Load model quantized through gptq
+    quantize_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        device_map=device_map,
-        quantization_config=GPTQConfig(bits=4, disable_exllama=True, dataset=dataset_name),
+        quantization_config=quantize_config,
         trust_remote_code=True
     )
     
@@ -886,12 +889,13 @@ def create_and_prepare_GPTQ_model(model_name: str, dataset_name: str, lora_alpha
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
-
+    
     # Cache quantized model to disk
-    with open(cache_file_path, 'wb') as cache_file:
-        dill.dump((model, peft_config, tokenizer), cache_file)
-        print(f"Processed samples cached to {cache_file_path}")
-
+    # with open(cache_file_path, 'wb') as cache_file:
+    #     dill.dump((model, peft_config, tokenizer), cache_file)
+    #     print(f"Processed samples cached to {cache_file_path}")
+    
+    
     return model, peft_config, tokenizer
 
 
@@ -1046,7 +1050,7 @@ def train_language_model(model_name, train_data, epochs=3, lr=0.00006, batch_siz
     try:
         trainer.train()
     except Exception as e:
-        print("Error:", e)
+        print(traceback.format_exc())
         return None
     except KeyboardInterrupt:
         print("Training Loop Aborted")
