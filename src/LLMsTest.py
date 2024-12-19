@@ -43,8 +43,8 @@ def main():
     # Environment Defined training Parameters
     # Define the arguments for creating and preparing the GPTQ model
     args = get_parsed_args()
-    # Print the chosen arguments
-    print(args)
+    # DEBUGGING: Print the chosen arguments
+    # print(args)
 
     proj_dir = get_project_directory()
 
@@ -122,8 +122,7 @@ def main():
         print("Model output written to CSV file:", output_file_path)
 
         all_inclusive_plots(args.output, 'graphs')
-    except Exception as e:
-        print("Error: ", e)
+    # except Exception as e:
     finally:
         monitor.stop_monitoring()
 
